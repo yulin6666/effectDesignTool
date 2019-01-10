@@ -134,7 +134,7 @@ class ViewController: NSViewController {
             //创建贴纸目录
             createDirectory(path: homePath.appendingFormat("/2Dsticker"))
             //解压文件
-            unzipFile(sourceURL: URL(fileURLWithPath: cSenseArZipFilePath.stringValue), destURL: URL(fileURLWithPath: homePath))
+            unzipFile(sourceURL: URL(fileURLWithPath: cSenseArZipFilePath.stringValue), destURL: URL(fileURLWithPath: homePath.appendingFormat("/2Dsticker")))
             //添加资源到sticker2d.json
             addresTo2dStickerJson()
             //添加到config.json
@@ -216,8 +216,7 @@ class ViewController: NSViewController {
     func addresTo2dStickerJson() -> Void {
         do {
             //找到路径
-            let name:String = URL(fileURLWithPath: URL(fileURLWithPath:cSenseArZipFilePath.stringValue).lastPathComponent).deletingPathExtension().relativePath
-            sticker2dWorkPath = homePath.appendingFormat("/%@",name)
+            sticker2dWorkPath = homePath.appendingFormat("/2Dsticker")
             //添加资源
             stickerJson["resource"] = [];
             let fileManager = FileManager.default
