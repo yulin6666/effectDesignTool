@@ -13,12 +13,14 @@ import SwiftyJSON
 class ViewController: NSViewController {
 
     @IBOutlet weak var packageName: NSTextField!
-    @IBOutlet weak var cSenseArZipFilePath: NSTextField!
-    @IBOutlet weak var maskUpZipFilePath: NSTextField!
-    @IBOutlet weak var filterZipFilePath: NSTextFieldCell!
+    @IBOutlet weak var zipFilePath: NSTextField!
     @IBOutlet weak var timeInterval: NSTextField!
     @IBOutlet weak var maskupTriggerType: NSTextField!
     @IBOutlet weak var maskupDiverse: NSButton!
+    @IBOutlet weak var zOrder: NSTextField!
+    @IBOutlet weak var input: NSTextField!
+    @IBOutlet weak var type: NSComboBox!
+    @IBOutlet weak var addItemButton: NSButton!
     
     @IBOutlet weak var debugInfoLabel: NSScrollView!
     var zipFileName:String = "";
@@ -30,13 +32,45 @@ class ViewController: NSViewController {
     var maskupJson:JSON = JSON();
     var maskupWorkPath:String = "";
     var sticker2dWorkPath:String = "";
+    var itemSet:[itemInfo] = [];
+    
+    struct itemInfo {
+        var path:String = ""
+        var input:String = ""
+        var type:String = ""
+        var zOrder:Int = 0
+        func itemInfo(){
+        }
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
 
         self.debugInfoLabel.documentView?.insertText("")
+        
+        zOrder.integerValue = Int(arc4random_uniform(1000))
         // Do any additional setup after loading the view.
     }
 
+    @IBAction func addItem(_ sender: Any) {
+        if !zipFilePath.stringValue.isEmpty{
+            var info = itemInfo()
+            info.path = zipFilePath.stringValue
+            info.input = input.stringValue
+            info.type = type.stringValue
+            info.zOrder = zOrder.integerValue
+            
+            itemSet.insert(info, at: 0)
+            
+            //clear
+            zipFilePath.stringValue = ""
+            input.stringValue = ""
+            type.selectItem(at: 0)
+            zOrder.integerValue = zOrder.integerValue + 1
+            
+            debugInfoLabel.documentView?.insertText("插入一条记录type:\(info.type),zorder:\(info.zOrder)\n")
+        }
+    }
     // MARK: -  UI
     override var representedObject: Any? {
         didSet {
@@ -44,31 +78,6 @@ class ViewController: NSViewController {
         }
     }
 
-    @IBAction func browsemaskUpFile(sender: AnyObject) {
-        
-        let dialog = NSOpenPanel();
-        
-        dialog.title                   = "Choose a .zip file";
-        dialog.showsResizeIndicator    = true;
-        dialog.showsHiddenFiles        = false;
-        dialog.canChooseDirectories    = false;
-        dialog.canCreateDirectories    = false;
-        dialog.allowsMultipleSelection = false;
-        dialog.allowedFileTypes        = ["zip"];
-        
-        if (dialog.runModal() == NSApplication.ModalResponse.OK) {
-            let result = dialog.url // Pathname of the file
-            
-            if (result != nil) {
-                let path = result!.path
-                maskUpZipFilePath.stringValue = path
-            }
-        } else {
-            // User clicked on "Cancel"
-            return
-        }
-        
-    }
     @IBAction func chooseSenseArZipFile(_ sender: Any) {
         
         let dialog = NSOpenPanel();
@@ -86,31 +95,7 @@ class ViewController: NSViewController {
             
             if (result != nil) {
                 let path = result!.path
-                cSenseArZipFilePath.stringValue = path
-            }
-        } else {
-            // User clicked on "Cancel"
-            return
-        }
-    }
-    
-    @IBAction func chooseFilter(_ sender: Any) {
-        let dialog = NSOpenPanel();
-        
-        dialog.title                   = "Choose a .zip file";
-        dialog.showsResizeIndicator    = true;
-        dialog.showsHiddenFiles        = false;
-        dialog.canChooseDirectories    = false;
-        dialog.canCreateDirectories    = false;
-        dialog.allowsMultipleSelection = false;
-        dialog.allowedFileTypes        = ["zip"];
-        
-        if (dialog.runModal() == NSApplication.ModalResponse.OK) {
-            let result = dialog.url // Pathname of the file
-            
-            if (result != nil) {
-                let path = result!.path
-                filterZipFilePath.stringValue = path
+                zipFilePath.stringValue = path
             }
         } else {
             // User clicked on "Cancel"
@@ -129,37 +114,45 @@ class ViewController: NSViewController {
         //创建根目录和config.json文件
         createDirectory(path: homePath)
         createConfigJson()
-        //添加商汤zip包
-        if !cSenseArZipFilePath.stringValue.isEmpty{
-            //创建贴纸目录
-            createDirectory(path: homePath.appendingFormat("/2Dsticker"))
-            //解压文件
-            unzipFile(sourceURL: URL(fileURLWithPath: cSenseArZipFilePath.stringValue), destURL: URL(fileURLWithPath: homePath.appendingFormat("/2Dsticker")))
-            //添加资源到sticker2d.json
-            addresTo2dStickerJson()
-            //添加到config.json
-            let senseARZOrder:Int = Int(arc4random_uniform(1000))+1001
-            addConfigItem(Path:"2Dsticker",type: "2DSticker",zorder: senseARZOrder)
+        
+        //插入item
+        if itemSet.count == 0 {
+            var info = itemInfo()
+            info.path = zipFilePath.stringValue
+            info.input = input.stringValue
+            info.type = type.stringValue
+            info.zOrder = zOrder.integerValue
+            
+            itemSet.insert(info, at: 0)
         }
-        //添加滤镜zip包
-        if !filterZipFilePath.stringValue.isEmpty{
-            //解压zip包
-            unzipFile(sourceURL: URL(fileURLWithPath: filterZipFilePath.stringValue), destURL: URL(fileURLWithPath: homePath))
-            //添加到config.json
-            let Path = URL(fileURLWithPath: URL(fileURLWithPath:filterZipFilePath.stringValue).lastPathComponent).deletingPathExtension().relativePath
-            let filterZorder:Int = Int(arc4random_uniform(1000))+1
-            addConfigItem(Path:Path,type: "filter",zorder: filterZorder)
-        }
-        //添加美妆包含多张图片的zip包
-        if !maskUpZipFilePath.stringValue.isEmpty {
-            //解压文件
-            unzipFile(sourceURL: URL(fileURLWithPath: maskUpZipFilePath.stringValue), destURL: URL(fileURLWithPath: homePath))
-            //创建+添加资源到Maskup.Json
-            addresToMaskupJson();
-            //添加到config.json
-            let Path = URL(fileURLWithPath: URL(fileURLWithPath:maskUpZipFilePath.stringValue).lastPathComponent).deletingPathExtension().relativePath
-            let filterZorder:Int = Int(arc4random_uniform(1000))+2000
-            addConfigItem(Path:Path,type: "maskup",zorder: filterZorder)
+        
+        //插入所有的item
+        for item in itemSet {
+            if(item.type == "2DSticker"){
+                //创建贴纸目录
+                let dirName:String = "2Dsticker".appendingFormat("%d", item.zOrder)
+                createDirectory(path: homePath.appendingFormat("/%@",dirName))
+                //解压文件
+                unzipFile(sourceURL: URL(fileURLWithPath: item.path), destURL: URL(fileURLWithPath:homePath.appendingFormat("/%@",dirName)))
+                //添加资源到sticker2d.json
+                addresTo2dStickerJson(dirName: dirName)
+                //加入配置文件
+                addConfigItem(Path:dirName,type: item.type,zorder: item.zOrder,input: item.input)
+            }else if(item.type == "maskup"){
+                //解压文件
+                unzipFile(sourceURL: URL(fileURLWithPath: item.path), destURL: URL(fileURLWithPath: homePath))
+                //创建+添加资源到Maskup.Json
+                addresToMaskupJson(path: item.path);
+                //添加到config.json
+                let Path = URL(fileURLWithPath: URL(fileURLWithPath:item.path).lastPathComponent).deletingPathExtension().relativePath
+                addConfigItem(Path:Path,type: item.type,zorder: item.zOrder,input: item.input)
+            }else if(item.type == "filter" || item.type == "sequence"){
+                //解压zip包
+                unzipFile(sourceURL: URL(fileURLWithPath:item.path), destURL: URL(fileURLWithPath: homePath))
+                //添加到config.json
+                let Path = URL(fileURLWithPath: URL(fileURLWithPath:item.path).lastPathComponent).deletingPathExtension().relativePath
+                addConfigItem(Path:Path,type: item.type,zorder: item.zOrder,input: item.input)
+            }
         }
      
         //打包文件
@@ -193,16 +186,6 @@ class ViewController: NSViewController {
         }
     }
     
-    func create2dStickerJson(){
-        do {
-            stickerJson["resource"] = [];
-            let fileManager = FileManager.default
-            try fileManager.createFile(atPath: homePath.appendingFormat("/2Dsticker/sticker.json"), contents: stickerJson.rawData(), attributes: nil)
-        } catch  {
-            debugInfoLabel.documentView?.insertText("创建sticker2d文件失败,error:\(error)")
-        }
-    }
-    
     func createmaskUpJson(){
         do {
             maskupJson["resource"] = [];
@@ -213,10 +196,10 @@ class ViewController: NSViewController {
         }
     }
     
-    func addresTo2dStickerJson() -> Void {
+    func addresTo2dStickerJson(dirName:String) -> Void {
         do {
             //找到路径
-            sticker2dWorkPath = homePath.appendingFormat("/2Dsticker")
+            sticker2dWorkPath = homePath.appendingFormat("/%@",dirName)
             //添加资源
             stickerJson["resource"] = [];
             let fileManager = FileManager.default
@@ -243,10 +226,10 @@ class ViewController: NSViewController {
         }
     }
     
-    func addresToMaskupJson(){
+    func addresToMaskupJson(path:String){
         do {
             //找到美妆的路径名
-            let name:String = URL(fileURLWithPath: URL(fileURLWithPath:maskUpZipFilePath.stringValue).lastPathComponent).deletingPathExtension().relativePath
+            let name:String = URL(fileURLWithPath: URL(fileURLWithPath:path).lastPathComponent).deletingPathExtension().relativePath
             maskupWorkPath = homePath.appendingFormat("/%@",name)
             //添加资源
             maskupJson["resource"] = [];
@@ -273,31 +256,54 @@ class ViewController: NSViewController {
                 trigger["triggerType"] = JSON(integerLiteral: maskupTriggerType.integerValue)
                 maskupJson["trigger"] = trigger
             }
-           
+
             //添加多人头显示不同人脸
             if maskupDiverse.state.rawValue == 1 {
                 maskupJson["diverse"] = true
             }
-            
+
             try fileManager.createFile(atPath: maskupWorkPath.appendingFormat("/maskup.json"), contents: maskupJson.rawData(), attributes: nil)
         } catch  {
             debugInfoLabel.documentView?.insertText("插入maskupJson失败,error:\(error)")
         }
-        
+
     }
     
-    func addConfigItem(Path:String,type:String,zorder:Int){
-        do{
-            //写入config.Json
+//    func addConfigItem(Path:String,type:String,zorder:Int){
+//        do{
+//            //写入config.Json
+//            var oneLink:JSON = JSON()
+//            oneLink["type"] = JSON(stringLiteral: type)
+//            oneLink["path"] = JSON(stringLiteral: Path)
+//            oneLink["zorder"] = JSON(integerLiteral: zorder)
+//            let links:JSON = [oneLink]
+//            try configJson["effect"]["Link"].merge(with: links)
+//            try configJson.rawData().write(to: URL(fileURLWithPath: homePath.appendingFormat("/%@", configJsonName)))
+//        }catch{
+//            debugInfoLabel.documentView?.insertText("添加配置文件失败 error:\(error)")
+//        }
+//    }
+    
+    func addConfigItem(Path:String,type:String,zorder:Int,input:String) -> Void {
+        do {
             var oneLink:JSON = JSON()
             oneLink["type"] = JSON(stringLiteral: type)
             oneLink["path"] = JSON(stringLiteral: Path)
             oneLink["zorder"] = JSON(integerLiteral: zorder)
+            if !input.isEmpty {
+                let StringArray = input.components(separatedBy:",")
+                var array:[Int] = [];
+                for sItem in StringArray {
+                    let item:Int = Int(sItem)!
+                    array.insert(item, at: 0)
+                }
+                oneLink["input"] = JSON(array)
+            }
             let links:JSON = [oneLink]
             try configJson["effect"]["Link"].merge(with: links)
             try configJson.rawData().write(to: URL(fileURLWithPath: homePath.appendingFormat("/%@", configJsonName)))
-        }catch{
-            debugInfoLabel.documentView?.insertText("添加配置文件失败 error:\(error)")
+        } catch  {
+            debugInfoLabel.documentView?.insertText("添加带input的配置文件失败 error:\(error)")
         }
     }
     
