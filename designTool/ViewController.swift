@@ -21,6 +21,8 @@ class ViewController: NSViewController {
     @IBOutlet weak var input: NSTextField!
     @IBOutlet weak var type: NSComboBox!
     @IBOutlet weak var addItemButton: NSButton!
+    @IBOutlet weak var timeInterval2d: NSTextField!
+    @IBOutlet weak var TriggerType2d: NSTextField!
     
     @IBOutlet weak var debugInfoLabel: NSScrollView!
     var zipFileName:String = "";
@@ -200,6 +202,15 @@ class ViewController: NSViewController {
         do {
             //找到路径
             sticker2dWorkPath = homePath.appendingFormat("/%@",dirName)
+            //添加触发类型
+            let timeval:Int = timeInterval2d.integerValue
+            let trigval:Int = TriggerType2d.integerValue
+            if timeval != 0 || trigval != 0{
+                var trigger:JSON = JSON()
+                trigger["imageInterval"] = JSON(integerLiteral: timeInterval2d.integerValue)
+                trigger["triggerType"] = JSON(integerLiteral: TriggerType2d.integerValue)
+                stickerJson["trigger"] = trigger
+            }
             //添加资源
             stickerJson["resource"] = [];
             let fileManager = FileManager.default
@@ -218,9 +229,8 @@ class ViewController: NSViewController {
                 }
                 let oneRess:JSON = [oneRes]
                 try stickerJson["resource"].merge(with: oneRess)
-                
-                try fileManager.createFile(atPath: sticker2dWorkPath.appendingFormat("/sticker.json"), contents: stickerJson.rawData(), attributes: nil)
             }
+            try fileManager.createFile(atPath: sticker2dWorkPath.appendingFormat("/sticker.json"), contents: stickerJson.rawData(), attributes: nil)
         } catch  {
             debugInfoLabel.documentView?.insertText("插入sticker2d文件失败,error:\(error)")
         }
